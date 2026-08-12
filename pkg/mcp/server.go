@@ -233,7 +233,12 @@ func NewServer(ctx context.Context, cfg ServerConfig) (*mcp.Server, *ServerConta
 // It wraps the handler with auth context middleware to forward Authorization
 // headers, plus any additional request headers named in forwardHeaders (e.g.
 // X-Scope-OrgID for multi-tenant Prometheus-compatible backends).
-func NewStreamableHTTPHandler(server *mcp.Server, logger *slog.Logger, sessionTimeout time.Duration, forwardHeaders ...string) http.Handler {
+//
+// When stateless is true, the handler runs in the SDK's stateless mode: the
+// Mcp-Session-Id header is not validated and every request is served with a
+// temporary session, so any replica behind a load balancer can serve any
+// request — no session affinity required.
+func NewStreamableHTTPHandler(server *mcp.Server, logger *slog.Logger, sessionTimeout time.Duration, stateless bool, forwardHeaders ...string) http.Handler {
 	if sessionTimeout == 0 {
 		// 0 value for session timeout means that sessions never close.
 		// Set a default if unset.
@@ -246,6 +251,7 @@ func NewStreamableHTTPHandler(server *mcp.Server, logger *slog.Logger, sessionTi
 		},
 		&mcp.StreamableHTTPOptions{
 			SessionTimeout: sessionTimeout,
+			Stateless:      stateless,
 			Logger:         logger,
 		},
 	)

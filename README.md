@@ -293,6 +293,8 @@ When running with the HTTP transport, the `Authorization` header of each incomin
 Additional request headers can be forwarded with the repeatable `--web.forward-headers` flag — for example `--web.forward-headers=X-Scope-OrgID` lets each caller select a tenant on multi-tenant Prometheus-compatible backends (Cortex, Mimir, Thanos).
 Requests that carry none of the forwarded headers fall back to the default client built from `--http.config`.
 
+Headers can also be driven by the connected LLM itself: `--mcp.advertise-header=X-Scope-OrgID` exposes the header as an optional `x_scope_orgid` string argument on every tool (advertised through `tools/list`), and a tool call providing it has that header set on the backend request for that call only — overriding any client-level value. On multi-tenant backends this lets a single server/session switch tenants per call instead of requiring one client connection per tenant.
+
 ## Telemetry
 ### Metrics
 
@@ -493,6 +495,22 @@ Flags:
                                  multi-tenant Prometheus-compatible backends,
                                  e.g. `X-Scope-OrgID` for Cortex/Mimir/Thanos.
                                  ($PROMETHEUS_MCP_WEB_FORWARD_HEADERS)
+      --mcp.advertise-header=MCP.ADVERTISE-HEADER ...  
+                                 HTTP header to expose as an optional
+                                 per-tool-call argument (repeat the flag for
+                                 multiple headers). Each named header is added
+                                 to every tool's input schema as an optional
+                                 string argument — the header name lowercased
+                                 with '-' replaced by '_' (X-Scope-OrgID ->
+                                 x_scope_orgid). When a tool call provides the
+                                 argument, the server sets that header on the
+                                 backend Prometheus API request for that call
+                                 only, overriding any value forwarded from the
+                                 incoming request (--web.forward-headers).
+                                 Lets one server/session target e.g. different
+                                 tenants of a multi-tenant backend per call,
+                                 instead of one client connection per tenant.
+                                 ($PROMETHEUS_MCP_MCP_ADVERTISE_HEADER)
       --[no-]dangerous.enable-tsdb-admin-tools  
                                  Enable and allow using tools that access
                                  Prometheus' TSDB Admin API endpoints

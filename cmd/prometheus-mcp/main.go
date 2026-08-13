@@ -129,6 +129,18 @@ var (
 			" Prometheus-compatible backends, e.g. `X-Scope-OrgID` for Cortex/Mimir/Thanos.",
 	).Strings()
 
+	flagMcpAdvertiseHeaders = kingpin.Flag(
+		"mcp.advertise-header",
+		"HTTP header to expose as an optional per-tool-call argument (repeat the flag for"+
+			" multiple headers). Each named header is added to every tool's input schema as an"+
+			" optional string argument — the header name lowercased with '-' replaced by '_'"+
+			" (X-Scope-OrgID -> x_scope_orgid). When a tool call provides the argument, the"+
+			" server sets that header on the backend Prometheus API request for that call only,"+
+			" overriding any value forwarded from the incoming request (--web.forward-headers)."+
+			" Lets one server/session target e.g. different tenants of a multi-tenant backend"+
+			" per call, instead of one client connection per tenant.",
+	).Strings()
+
 	flagEnableTsdbAdminTools = kingpin.Flag(
 		"dangerous.enable-tsdb-admin-tools",
 		"Enable and allow using tools that access Prometheus' TSDB Admin API endpoints"+
@@ -228,6 +240,7 @@ func main() {
 		ToonOutputEnabled:     *flagMcpToonOutputEnabled,
 		ClientLoggingEnabled:  *flagMcpClientLogging,
 		KeepAlive:             *flagMcpKeepaliveInterval,
+		AdvertisedHeaders:     *flagMcpAdvertiseHeaders,
 	})
 	if err != nil {
 		logger.Error("Failed to create MCP server", "err", err)

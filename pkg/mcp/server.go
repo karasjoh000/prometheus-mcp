@@ -157,6 +157,10 @@ type ServerConfig struct {
 	ToonOutputEnabled     bool
 	ClientLoggingEnabled  bool
 	KeepAlive             time.Duration
+	// AdvertisedHeaders lists HTTP headers exposed as optional per-tool-call
+	// arguments; a provided argument sets that header on the backend request
+	// for the call (see --mcp.advertise-header).
+	AdvertisedHeaders []string
 }
 
 // NewServer creates a new MCP server using the official Go SDK.
@@ -220,6 +224,12 @@ func NewServer(ctx context.Context, cfg ServerConfig) (*mcp.Server, *ServerConta
 
 	// Add telemetry middleware for metrics and logging.
 	server.AddReceivingMiddleware(telemetryMiddleware(logger))
+
+	// Expose configured headers as per-tool-call arguments.
+	if len(cfg.AdvertisedHeaders) > 0 {
+		server.AddReceivingMiddleware(advertisedHeadersMiddleware(cfg.AdvertisedHeaders, logger))
+		logger.Info("Advertising headers as per-tool-call arguments", "headers", strings.Join(cfg.AdvertisedHeaders, ","))
+	}
 
 	logger.Info("MCP server created",
 		"prometheus_url", cfg.PrometheusURL,
@@ -405,7 +415,12 @@ func (h *headerForwardingRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 			req.Header.Add(name, value)
 		}
 	}
-	return h.next.RoundTrip(req)
+	next := h.next
+	if next == nil {
+		// Follow the net/http convention: a nil transport means the default.
+		next = http.DefaultTransport
+	}
+	return next.RoundTrip(req)
 }
 
 // createClientWithAuth creates a new API client with the given Authorization

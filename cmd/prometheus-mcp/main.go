@@ -133,8 +133,8 @@ var (
 		"mcp.advertise-header",
 		"HTTP header to expose as an optional per-tool-call argument (repeat the flag for"+
 			" multiple headers). Each named header is added to every tool's input schema as an"+
-			" optional string argument — the header name lowercased with '-' replaced by '_'"+
-			" (X-Scope-OrgID -> x_scope_orgid). When a tool call provides the argument, the"+
+			" optional string argument named exactly like the header (verbatim, no"+
+			" conversion). When a tool call provides the argument, the"+
 			" server sets that header on the backend Prometheus API request for that call only,"+
 			" overriding any value forwarded from the incoming request (--web.forward-headers)."+
 			" Lets one server/session target e.g. different tenants of a multi-tenant backend"+

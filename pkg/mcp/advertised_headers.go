@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -30,18 +29,12 @@ import (
 // that post-processes its results.
 const methodToolsList = "tools/list"
 
-// headerArgumentName converts an HTTP header name into the tool-argument
-// name it is advertised as: lowercased with '-' replaced by '_'
-// (X-Scope-OrgID -> x_scope_orgid).
-func headerArgumentName(header string) string {
-	return strings.ToLower(strings.ReplaceAll(header, "-", "_"))
-}
-
 // advertisedHeadersMiddleware exposes each configured HTTP header as an
 // optional per-call tool argument (--mcp.advertise-header):
 //
-//   - tools/list results gain an optional string property per header on every
-//     tool's input schema, so connected LLMs discover the argument.
+//   - tools/list results gain an optional string property per header (named
+//     exactly like the header) on every tool's input schema, so connected
+//     LLMs discover the argument.
 //   - tools/call requests have the argument extracted (and removed, so tool
 //     input validation and handlers never see it) and stored in the request
 //     context as a forwarded header, where per-request API clients pick it up
@@ -52,9 +45,13 @@ func headerArgumentName(header string) string {
 // multi-tenant Prometheus-compatible backend per tool call by setting
 // X-Scope-OrgID, without reconnecting or reconfiguring the client.
 func advertisedHeadersMiddleware(headers []string, logger *slog.Logger) mcp.Middleware {
+	// The advertised argument name is the header name, verbatim — no
+	// derivation rule for operators or models to learn. (JSON property names
+	// may contain '-' and capitals; the schema tells the model the exact
+	// name either way.)
 	argToHeader := make(map[string]string, len(headers))
 	for _, h := range headers {
-		argToHeader[headerArgumentName(h)] = h
+		argToHeader[h] = h
 	}
 
 	return func(next mcp.MethodHandler) mcp.MethodHandler {

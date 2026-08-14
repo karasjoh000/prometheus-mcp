@@ -29,30 +29,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHeaderArgumentName(t *testing.T) {
-	t.Parallel()
-
-	require.Equal(t, "x_scope_orgid", headerArgumentName("X-Scope-OrgID"))
-	require.Equal(t, "x_request_id", headerArgumentName("X-Request-ID"))
-	require.Equal(t, "authorization", headerArgumentName("Authorization"))
-}
-
 func TestExtractAdvertisedHeaderArgs(t *testing.T) {
 	t.Parallel()
 
 	logger, _ := newTestLogger()
-	argToHeader := map[string]string{"x_scope_orgid": "X-Scope-OrgID"}
+	argToHeader := map[string]string{"X-Scope-OrgID": "X-Scope-OrgID"}
 
 	t.Run("extracts and removes the argument, sets the header", func(t *testing.T) {
 		t.Parallel()
 
-		params := &mcp.CallToolParams{Arguments: map[string]any{"query": "up", "x_scope_orgid": "tenant-a"}}
+		params := &mcp.CallToolParams{Arguments: map[string]any{"query": "up", "X-Scope-OrgID": "tenant-a"}}
 		ctx := extractAdvertisedHeaderArgs(context.Background(), params, argToHeader, logger)
 
 		require.Equal(t, "tenant-a", getForwardedHeadersFromContext(ctx).Get("X-Scope-OrgID"))
 		args, ok := params.Arguments.(map[string]any)
 		require.True(t, ok)
-		require.NotContains(t, args, "x_scope_orgid")
+		require.NotContains(t, args, "X-Scope-OrgID")
 		require.Contains(t, args, "query")
 	})
 
@@ -63,7 +55,7 @@ func TestExtractAdvertisedHeaderArgs(t *testing.T) {
 		inbound.Set("X-Scope-Orgid", "tenant-from-request")
 		ctx := addForwardedHeadersToContext(context.Background(), inbound)
 
-		params := &mcp.CallToolParams{Arguments: map[string]any{"x_scope_orgid": "tenant-from-arg"}}
+		params := &mcp.CallToolParams{Arguments: map[string]any{"X-Scope-OrgID": "tenant-from-arg"}}
 		ctx = extractAdvertisedHeaderArgs(ctx, params, argToHeader, logger)
 
 		require.Equal(t, "tenant-from-arg", getForwardedHeadersFromContext(ctx).Get("X-Scope-OrgID"))
@@ -74,23 +66,23 @@ func TestExtractAdvertisedHeaderArgs(t *testing.T) {
 	t.Run("handles RawMessage arguments", func(t *testing.T) {
 		t.Parallel()
 
-		params := &mcp.CallToolParams{Arguments: json.RawMessage(`{"query":"up","x_scope_orgid":"tenant-b"}`)}
+		params := &mcp.CallToolParams{Arguments: json.RawMessage(`{"query":"up","X-Scope-OrgID":"tenant-b"}`)}
 		ctx := extractAdvertisedHeaderArgs(context.Background(), params, argToHeader, logger)
 
 		require.Equal(t, "tenant-b", getForwardedHeadersFromContext(ctx).Get("X-Scope-OrgID"))
 		args, ok := params.Arguments.(map[string]any)
 		require.True(t, ok)
-		require.NotContains(t, args, "x_scope_orgid")
+		require.NotContains(t, args, "X-Scope-OrgID")
 	})
 
 	t.Run("ignores non-string and empty values", func(t *testing.T) {
 		t.Parallel()
 
-		params := &mcp.CallToolParams{Arguments: map[string]any{"x_scope_orgid": 42}}
+		params := &mcp.CallToolParams{Arguments: map[string]any{"X-Scope-OrgID": 42}}
 		ctx := extractAdvertisedHeaderArgs(context.Background(), params, argToHeader, logger)
 		require.Nil(t, getForwardedHeadersFromContext(ctx))
 		// Still removed so schema validation never sees it.
-		require.NotContains(t, params.Arguments.(map[string]any), "x_scope_orgid")
+		require.NotContains(t, params.Arguments.(map[string]any), "X-Scope-OrgID")
 	})
 
 	t.Run("no-op without the argument", func(t *testing.T) {
@@ -105,7 +97,7 @@ func TestExtractAdvertisedHeaderArgs(t *testing.T) {
 func TestAdvertiseHeaderArgs(t *testing.T) {
 	t.Parallel()
 
-	argToHeader := map[string]string{"x_scope_orgid": "X-Scope-OrgID"}
+	argToHeader := map[string]string{"X-Scope-OrgID": "X-Scope-OrgID"}
 	result := &mcp.ListToolsResult{Tools: []*mcp.Tool{
 		{Name: "query", InputSchema: &jsonschema.Schema{Type: "object", Properties: map[string]*jsonschema.Schema{
 			"query": {Type: "string"},
@@ -115,17 +107,17 @@ func TestAdvertiseHeaderArgs(t *testing.T) {
 	registered := result.Tools[0]
 	advertiseHeaderArgs(result, argToHeader)
 	schema := result.Tools[0].InputSchema.(*jsonschema.Schema)
-	require.Contains(t, schema.Properties, "x_scope_orgid")
-	require.Equal(t, "string", schema.Properties["x_scope_orgid"].Type)
+	require.Contains(t, schema.Properties, "X-Scope-OrgID")
+	require.Equal(t, "string", schema.Properties["X-Scope-OrgID"].Type)
 
 	// The registered tool's schema must NOT be mutated (the SDK validates
 	// against a pre-resolved snapshot of it).
-	require.NotContains(t, registered.InputSchema.(*jsonschema.Schema).Properties, "x_scope_orgid")
+	require.NotContains(t, registered.InputSchema.(*jsonschema.Schema).Properties, "X-Scope-OrgID")
 
 	// Idempotent on repeat listing.
 	advertiseHeaderArgs(result, argToHeader)
 	schema = result.Tools[0].InputSchema.(*jsonschema.Schema)
-	require.Contains(t, schema.Properties, "x_scope_orgid")
+	require.Contains(t, schema.Properties, "X-Scope-OrgID")
 }
 
 // sseResultText extracts the tool result text from a streamable HTTP response body.
@@ -199,11 +191,11 @@ func TestAdvertisedHeaders_EndToEnd(t *testing.T) {
 	listResp := post(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`, sid)
 	listBody := new(strings.Builder)
 	_, _ = copyBody(listBody, listResp)
-	require.Contains(t, listBody.String(), `"x_scope_orgid"`)
+	require.Contains(t, listBody.String(), `"X-Scope-OrgID"`)
 
 	// tools/call with the argument: validation passes (argument stripped
 	// before validation) and the header reaches the Prometheus backend.
-	callResp := post(`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"query":"up","x_scope_orgid":"tenant-e2e"}}}`, sid)
+	callResp := post(`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"query","arguments":{"query":"up","X-Scope-OrgID":"tenant-e2e"}}}`, sid)
 	callBody := new(strings.Builder)
 	_, _ = copyBody(callBody, callResp)
 	last := sseResultText(t, callBody.String())

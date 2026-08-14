@@ -293,7 +293,7 @@ When running with the HTTP transport, the `Authorization` header of each incomin
 Additional request headers can be forwarded with the repeatable `--web.forward-headers` flag — for example `--web.forward-headers=X-Scope-OrgID` lets each caller select a tenant on multi-tenant Prometheus-compatible backends (Cortex, Mimir, Thanos).
 Requests that carry none of the forwarded headers fall back to the default client built from `--http.config`.
 
-Headers can also be driven by the connected LLM itself: `--mcp.advertise-header=X-Scope-OrgID` exposes the header as an optional `x_scope_orgid` string argument on every tool (advertised through `tools/list`), and a tool call providing it has that header set on the backend request for that call only — overriding any client-level value. On multi-tenant backends this lets a single server/session switch tenants per call instead of requiring one client connection per tenant.
+Headers can also be driven by the connected LLM itself: `--mcp.advertise-header=X-Scope-OrgID` exposes the header as an optional argument named exactly like the header (`X-Scope-OrgID`) on every tool (advertised through `tools/list`), and a tool call providing it has that header set on the backend request for that call only — overriding any client-level value. On multi-tenant backends this lets a single server/session switch tenants per call instead of requiring one client connection per tenant.
 
 ## Telemetry
 ### Metrics
